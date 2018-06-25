@@ -1,8 +1,8 @@
 var express = require('express')
 var app = express()
 var bodyParser = require('body-parser')
-// var config = require(process.argv[2])
-// var Hook = require('./lib/coding')
+var config = require('./config.json')
+var Hook = require('./hook')
 var async = require('async')
 var logger = require('express-req-logger')
 
@@ -10,6 +10,7 @@ var logger = require('express-req-logger')
 // var hooks = repository.map(function (item) {
 //   return new Hook(item)
 // })
+var hooks = [new Hook(config)]
 
 app.use(logger())
 app.use(bodyParser.json())
@@ -21,12 +22,12 @@ app.post('/', function (req, res, next) {
   var eventType = getHeaders(req.headers, 'X-GitHub-Event') || req.body.event
   var body = req.body
   var data = {
-    https_url: body.repository ? body.repository.https_url : '',
+    https_url: body.repository ? body.repository.clone_url : '',
     ssh_url: body.repository ? body.repository.ssh_url : '',
-    ref: body.ref || '',
+    ref: body.ref || 'master',
     token: body.token || ''
   }
-  console.log(body)
+  // console.log(body)
   if (eventType === 'push') {
     async.map(hooks, function (item, next) {
       item.pull(data, next)
@@ -35,8 +36,9 @@ app.post('/', function (req, res, next) {
         return res.status(500).send(err)
       }
       console.log(result.join(''))
-      res.end()
+      res.end(result.join(''))
     })
+
   } else {
     res.end()
   }
@@ -51,7 +53,7 @@ var getHeaders = function (headers, name) {
   }
 }
 
-var port = 4040
+var port = config.port || 4040
 
 app.listen(port, () => {
   console.log('server start at ' + port)
